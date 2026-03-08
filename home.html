@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>N>ABLE — Home</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700;800&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
+<style>
+  :root {
+    --navy: #001f4e;
+    --navy-mid: #002d6e;
+    --navy-light: #0a3d8f;
+    --orange: #E87722;
+    --orange-light: #f5a04a;
+    --white: #ffffff;
+    --gray: #8aa0bc;
+    --border: rgba(255,255,255,0.08);
+    --surface: rgba(255,255,255,0.04);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--navy); font-family: 'Barlow', sans-serif; color: var(--white); }
+
+  /* Background */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 10% 50%, rgba(0,80,180,0.15) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 70% at 95% 10%, rgba(232,119,34,0.06) 0%, transparent 60%),
+      repeating-linear-gradient(0deg, transparent, transparent 59px, rgba(255,255,255,0.012) 59px, rgba(255,255,255,0.012) 60px),
+      repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(255,255,255,0.012) 59px, rgba(255,255,255,0.012) 60px);
+    pointer-events: none; z-index: 0;
+  }
+
+  .shell { position: relative; z-index: 1; display: flex; flex-direction: column; width: 100vw; height: 100vh; overflow: hidden; }
+
+  /* ── Sign-in overlay ── */
+  #signinOverlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: var(--navy);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .signin-card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 48px 56px;
+    max-width: 420px; width: 100%;
+    text-align: center;
+  }
+  .signin-logo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 28px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+  .signin-logo span { color: var(--orange); }
+  .signin-sub { font-size: 12px; color: var(--gray); margin-bottom: 36px; }
+  .signin-btn {
+    background: var(--orange); color: #fff;
+    border: none; border-radius: 8px;
+    padding: 14px 32px;
+    font-family: 'Barlow', sans-serif;
+    font-size: 14px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    cursor: pointer; width: 100%;
+    transition: background 0.15s ease;
+  }
+  .signin-btn:hover { background: var(--orange-light); }
+  .signin-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .signin-msg { margin-top: 14px; font-size: 12px; color: var(--gray); font-style: italic; }
+
+  /* ── Top Bar ── */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px; height: 56px;
+    background: rgba(0,10,30,0.55);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+    flex-shrink: 0;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-mark {
+    width: 30px; height: 30px; background: var(--orange);
+    border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 800; font-size: 13px; color: #fff;
+  }
+  .brand-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 800; font-size: 18px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .brand-name span { color: var(--orange); }
+  .topbar-right { display: flex; align-items: center; gap: 16px; }
+  .user-pill { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray); }
+  .user-avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--navy-light); border: 1.5px solid var(--orange);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; color: var(--orange);
+  }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 5px rgba(34,197,94,0.6); }
+
+  /* ── Body ── */
+  .body { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 210px; flex-shrink: 0;
+    background: rgba(0,10,30,0.4);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    padding: 18px 0; overflow-y: auto;
+  }
+  .sidebar-label {
+    font-size: 9px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.14em;
+    color: var(--gray); opacity: 0.5;
+    padding: 0 18px 8px;
+  }
+  .sidebar-section { margin-bottom: 22px; }
+  .nav-link {
+    display: flex; align-items: center; gap: 9px;
+    padding: 9px 18px;
+    font-size: 13px; font-weight: 500;
+    color: rgba(255,255,255,0.6);
+    text-decoration: none;
+    border-left: 3px solid transparent;
+    transition: all 0.15s ease; cursor: pointer;
+  }
+  .nav-link:hover { background: rgba(255,255,255,0.05); color: #fff; border-left-color: var(--orange); }
+  .nav-link.active { background: rgba(232,119,34,0.1); color: #fff; border-left-color: var(--orange); font-weight: 600; }
+  .nav-icon { font-size: 14px; width: 16px; text-align: center; opacity: 0.85; }
+  .nav-divider { height: 1px; background: var(--border); margin: 4px 18px 16px; }
+
+  /* ── Main ── */
+  .main { flex: 1; overflow-y: auto; padding: 28px 32px; }
+
+  /* Page header */
+  .page-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--orange); margin-bottom: 4px; animation: fadeUp 0.4s ease both; }
+  .page-title { font-family: 'Barlow Condensed', sans-serif; font-size: 30px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 2px; animation: fadeUp 0.4s 0.05s ease both; }
+  .page-sub { font-size: 13px; color: var(--gray); margin-bottom: 26px; animation: fadeUp 0.4s 0.08s ease both; }
+
+  /* Power BI Panel */
+  .pbi-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 22px;
+    animation: fadeUp 0.4s 0.12s ease both;
+  }
+  .pbi-header {
+    background: rgba(0,10,30,0.4);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 18px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .pbi-title {
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--orange);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .pbi-dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 5px rgba(34,197,94,0.5); }
+  .pbi-actions { display: flex; gap: 8px; }
+  .pbi-btn {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--gray);
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 4px; padding: 4px 10px;
+    cursor: pointer; transition: all 0.15s ease;
+  }
+  .pbi-btn:hover { color: #fff; border-color: var(--orange); }
+  .pbi-embed { width: 100%; height: 480px; border: none; display: block; background: rgba(0,0,0,0.2); }
+  .pbi-placeholder {
+    height: 480px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 12px; color: var(--gray);
+  }
+  .pbi-placeholder-icon { font-size: 40px; opacity: 0.3; }
+  .pbi-placeholder-text { font-size: 13px; opacity: 0.5; }
+  .pbi-placeholder-sub { font-size: 11px; opacity: 0.35; font-style: italic; }
+
+  /* Quick nav cards */
+  .cards-heading { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gray); opacity: 0.6; margin-bottom: 12px; animation: fadeUp 0.4s 0.18s ease both; }
+  .cards-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; animation: fadeUp 0.4s 0.22s ease both; }
+  .nav-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px; padding: 18px;
+    text-decoration: none; color: #fff;
+    display: flex; flex-direction: column; gap: 8px;
+    cursor: pointer; position: relative; overflow: hidden;
+    transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  }
+  .nav-card:hover { transform: translateY(-2px); border-color: rgba(232,119,34,0.4); background: rgba(255,255,255,0.06); }
+  .nav-card-icon { font-size: 20px; }
+  .nav-card-title { font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+  .nav-card-desc { font-size: 11px; color: var(--gray); line-height: 1.5; }
+  .nav-card-arrow { align-self: flex-end; color: var(--orange); font-size: 16px; opacity: 0; transform: translateX(-4px); transition: all 0.2s ease; }
+  .nav-card:hover .nav-card-arrow { opacity: 1; transform: translateX(0); }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- SIGN-IN OVERLAY -->
+<div id="signinOverlay">
+  <div class="signin-card">
+    <div class="signin-logo">N<span>></span>ABLE</div>
+    <div class="signin-sub">Nextaff Franchise Platform · Sign in to continue</div>
+    <button class="signin-btn" id="signinBtn" onclick="signIn()">Sign in with Microsoft</button>
+    <div class="signin-msg" id="signinMsg"></div>
+  </div>
+</div>
+
+<div class="shell" id="appShell" style="display:none;">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark">N</div>
+      <div class="brand-name">N<span>></span>ABLE</div>
+    </div>
+    <div class="topbar-right">
+      <span class="status-dot"></span>
+      <div class="user-pill">
+        <div class="user-avatar" id="topAvatar">--</div>
+        <span id="topName">Loading...</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-label">Main</div>
+        <a class="nav-link active" href="home.html">
+          <span class="nav-icon">⌂</span> Home
+        </a>
+        <a class="nav-link" href="strategic-accounts.html">
+          <span class="nav-icon">★</span> Strategic Accounts
+        </a>
+      </div>
+      <div class="nav-divider"></div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">External Tools</div>
+        <a class="nav-link" href="https://avionte.com" target="_blank">
+          <span class="nav-icon">↗</span> Avionte ATS
+        </a>
+        <a class="nav-link" href="https://app.hubspot.com" target="_blank">
+          <span class="nav-icon">↗</span> HubSpot CRM
+        </a>
+        <a class="nav-link" href="https://teams.microsoft.com" target="_blank">
+          <span class="nav-icon">↗</span> MS Teams
+        </a>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+      <div class="page-eyebrow">Franchise Mission Control</div>
+      <div class="page-title" id="pageGreeting">Good Evening</div>
+      <div class="page-sub" id="pageDate">Loading...</div>
+
+      <!-- POWER BI -->
+      <div class="pbi-panel">
+        <div class="pbi-header">
+          <div class="pbi-title">
+            <span class="pbi-dot"></span>
+            Power BI — Live Dashboard
+          </div>
+          <div class="pbi-actions">
+            <button class="pbi-btn" onclick="setPbiUrl()">Set Report URL</button>
+            <button class="pbi-btn" onclick="openPbi()">Open Full Screen ↗</button>
+          </div>
+        </div>
+        <div id="pbiContainer">
+          <div class="pbi-placeholder">
+            <div class="pbi-placeholder-icon">📊</div>
+            <div class="pbi-placeholder-text">Power BI report not yet connected</div>
+            <div class="pbi-placeholder-sub">Click "Set Report URL" to paste your Power BI embed link</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- QUICK NAV -->
+      <div class="cards-heading">Quick Access</div>
+      <div class="cards-grid">
+        <a class="nav-card" href="strategic-accounts.html">
+          <div class="nav-card-icon">★</div>
+          <div class="nav-card-title">Strategic Accounts</div>
+          <div class="nav-card-desc">Key account overviews, contacts, and performance tracking.</div>
+          <div class="nav-card-arrow">→</div>
+        </a>
+        <a class="nav-card" href="https://avionte.com" target="_blank">
+          <div class="nav-card-icon">👤</div>
+          <div class="nav-card-title">Avionte ATS</div>
+          <div class="nav-card-desc">Applicant tracking, submissions, and placement management.</div>
+          <div class="nav-card-arrow">↗</div>
+        </a>
+        <a class="nav-card" href="https://app.hubspot.com" target="_blank">
+          <div class="nav-card-icon">📈</div>
+          <div class="nav-card-title">HubSpot CRM</div>
+          <div class="nav-card-desc">Pipeline, contacts, deals, and sales activity.</div>
+          <div class="nav-card-arrow">↗</div>
+        </a>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Config ──
+  const CLIENT_ID = "6c88bf12-eb55-40ec-9a7d-328154c6e372";
+  const TENANT_ID = "75d2359e-494b-4009-9a6b-263e04d7744e";
+  const REDIRECT  = "https://nextaffone.github.io/n-able/home.html";
+  const PBI_KEY   = "nable_pbi_url";
+
+  // ── Greeting ──
+  const now = new Date();
+  const hour = now.getHours();
+  const greetingText = hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening";
+  const dateText = now.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  function getInitials(name) {
+    return name.split(" ").filter(Boolean).map(function(n){ return n[0]; }).join("").toUpperCase().slice(0,2);
+  }
+
+  // ── Power BI ──
+  function loadPbi() {
+    var url = sessionStorage.getItem(PBI_KEY);
+    if (url) {
+      document.getElementById("pbiContainer").innerHTML =
+        '<iframe class="pbi-embed" src="' + url + '" allowfullscreen></iframe>';
+    }
+  }
+
+  function setPbiUrl() {
+    var url = prompt("Paste your Power BI embed URL:");
+    if (url && url.trim()) {
+      sessionStorage.setItem(PBI_KEY, url.trim());
+      loadPbi();
+    }
+  }
+
+  function openPbi() {
+    var url = sessionStorage.getItem(PBI_KEY);
+    if (url) window.open(url, '_blank');
+    else alert("No Power BI URL set yet. Click 'Set Report URL' first.");
+  }
+
+  // ── Show App ──
+  function showApp(profile) {
+    var fullName = profile.displayName || "User";
+    var firstName = fullName.split(" ")[0];
+
+    document.getElementById("signinOverlay").style.display = "none";
+    document.getElementById("appShell").style.display = "flex";
+
+    document.getElementById("topAvatar").textContent = getInitials(fullName);
+    document.getElementById("topName").textContent = fullName + (profile.jobTitle ? "  ·  " + profile.jobTitle : "");
+    document.getElementById("pageGreeting").textContent = greetingText + ", " + firstName;
+    document.getElementById("pageDate").textContent = dateText + (profile.officeLocation ? "  ·  " + profile.officeLocation : "");
+
+    loadPbi();
+  }
+
+  // ── Auth ──
+  async function signIn() {
+    var btn = document.getElementById("signinBtn");
+    var msg = document.getElementById("signinMsg");
+    btn.disabled = true;
+    msg.textContent = "Opening Microsoft sign-in...";
+    try {
+      var msalInstance = new msal.PublicClientApplication({
+        auth: { clientId: CLIENT_ID, authority: "https://login.microsoftonline.com/" + TENANT_ID, redirectUri: REDIRECT },
+        cache: { cacheLocation: "sessionStorage" }
+      });
+      await msalInstance.initialize();
+      var result = await msalInstance.loginPopup({ scopes: ["User.Read"] });
+      // Store token for other pages
+      sessionStorage.setItem("nable_token", result.accessToken);
+      var res = await fetch("https://graph.microsoft.com/v1.0/me?$select=displayName,mail,userPrincipalName,officeLocation,jobTitle", {
+        headers: { "Authorization": "Bearer " + result.accessToken }
+      });
+      var profile = await res.json();
+      sessionStorage.setItem("nable_profile", JSON.stringify(profile));
+      showApp(profile);
+    } catch(e) {
+      msg.textContent = "Sign-in failed: " + e.message;
+      btn.disabled = false;
+    }
+  }
+
+  // ── Auto-login if session exists ──
+  (function() {
+    var cached = sessionStorage.getItem("nable_profile");
+    if (cached) {
+      try { showApp(JSON.parse(cached)); return; } catch(e) {}
+    }
+  })();
+</script>
+</body>
+</html>
