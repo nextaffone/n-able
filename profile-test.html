@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MyNextaff — Profile Test</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;600;700&family=Barlow+Condensed:wght@700;800&display=swap" rel="stylesheet">
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -38,7 +39,6 @@
     font-size: 26px; font-weight: 800;
     color: #E87722;
     margin: 0 auto 24px;
-    letter-spacing: 1px;
   }
 
   .greeting {
@@ -90,11 +90,30 @@
     font-size: 13px;
   }
 
-  .error-msg {
-    margin-top: 24px;
-    font-size: 12px;
-    color: #f87171;
+  .sign-in-btn {
+    margin-top: 28px;
+    background: #E87722;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 14px 32px;
+    font-family: 'Barlow', sans-serif;
+    font-size: 14px; font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    width: 100%;
     display: none;
+    transition: background 0.15s ease;
+  }
+
+  .sign-in-btn:hover { background: #f5a04a; }
+
+  .status-msg {
+    margin-top: 16px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.4);
+    font-style: italic;
   }
 </style>
 </head>
@@ -102,7 +121,7 @@
 
 <div class="card">
   <div class="avatar" id="avatar">...</div>
-  <div class="greeting" id="greeting">Welcome back</div>
+  <div class="greeting" id="greeting">Welcome to Nextaff</div>
   <div class="name" id="name">Loading...</div>
 
   <div class="fields">
@@ -120,59 +139,98 @@
     </div>
   </div>
 
-  <div class="error-msg" id="error">
-    ⚠️ Could not load profile — make sure this file is open inside SharePoint, not from your desktop.
-  </div>
+  <button class="sign-in-btn" id="signInBtn" onclick="signIn()">
+    Sign in with Microsoft
+  </button>
+  <div class="status-msg" id="statusMsg"></div>
 </div>
 
 <script>
-  // Time-based greeting
+  const CLIENT_ID = "6c88bf12-eb55-40ec-9a7d-328154c6e372";
+  const TENANT_ID = "75d2359e-494b-4009-9a6b-263e04d7744e";
+  const REDIRECT  = "https://nextaffone.github.io/n-able/profile-test.html";
+
+  const msalConfig = {
+    auth: {
+      clientId: CLIENT_ID,
+      authority: `https://login.microsoftonline.com/${TENANT_ID}`,
+      redirectUri: REDIRECT
+    },
+    cache: { cacheLocation: "sessionStorage" }
+  };
+
+  const msalInstance = new msal.PublicClientApplication(msalConfig);
+  const scopes = ["User.Read"];
+
   const hour = new Date().getHours();
   const greetingText = hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening";
 
-  // Grab initials for avatar
   function getInitials(name) {
-    return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+    return name.split(" ").filter(Boolean).map(n => n[0]).join("").toUpperCase().slice(0, 2);
   }
 
-  // Pull a specific property from the UserProfileProperties array
-  function getProfileProp(props, key) {
-    const match = props.find(p => p.Key === key);
-    return match ? match.Value : null;
+  function showSignIn() {
+    document.getElementById("name").textContent = "Sign In Required";
+    document.getElementById("signInBtn").style.display = "block";
+    document.getElementById("statusMsg").textContent = "";
+    ["email","office","title"].forEach(id => {
+      document.getElementById(id).textContent = "—";
+      document.getElementById(id).classList.remove("loading");
+    });
   }
 
-  fetch("/_api/SP.UserProfiles.PeopleManager/GetMyProperties", {
-    headers: { "Accept": "application/json;odata=verbose" }
-  })
-  .then(res => {
-    if (!res.ok) throw new Error("API error");
-    return res.json();
-  })
-  .then(data => {
-    const d = data.d;
-    const props = d.UserProfileProperties?.results || [];
-
-    const fullName = d.DisplayName || "Unknown User";
-    const firstName = fullName.split(" ")[0];
-    const email = d.Email || getProfileProp(props, "WorkEmail") || "Not available";
-    const office = getProfileProp(props, "Office") || getProfileProp(props, "SPS-Location") || "Not set";
-    const title = d.Title || getProfileProp(props, "Title") || "Not set";
-
+  function populateUI(profile) {
+    const fullName = profile.displayName || "Unknown";
     document.getElementById("greeting").textContent = greetingText;
     document.getElementById("name").textContent = fullName;
     document.getElementById("avatar").textContent = getInitials(fullName);
-    document.getElementById("email").textContent = email;
+    document.getElementById("email").textContent = profile.mail || profile.userPrincipalName || "Not available";
     document.getElementById("email").classList.remove("loading");
-    document.getElementById("office").textContent = office;
+    document.getElementById("office").textContent = profile.officeLocation || "Not set";
     document.getElementById("office").classList.remove("loading");
-    document.getElementById("title").textContent = title;
+    document.getElementById("title").textContent = profile.jobTitle || "Not set";
     document.getElementById("title").classList.remove("loading");
-  })
-  .catch(err => {
-    document.getElementById("name").textContent = "Profile Error";
-    document.getElementById("error").style.display = "block";
-    console.error("SharePoint profile fetch failed:", err);
-  });
+    document.getElementById("signInBtn").style.display = "none";
+    document.getElementById("statusMsg").textContent = "";
+  }
+
+  async function fetchProfile(token) {
+    const res = await fetch("https://graph.microsoft.com/v1.0/me?$select=displayName,mail,userPrincipalName,officeLocation,jobTitle", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return res.json();
+  }
+
+  async function signIn() {
+    try {
+      document.getElementById("statusMsg").textContent = "Opening Microsoft sign-in...";
+      const result = await msalInstance.loginPopup({ scopes });
+      const profile = await fetchProfile(result.accessToken);
+      populateUI(profile);
+    } catch (e) {
+      document.getElementById("statusMsg").textContent = "Sign-in failed. Please try again.";
+      console.error(e);
+    }
+  }
+
+  async function init() {
+    await msalInstance.handleRedirectPromise();
+    const accounts = msalInstance.getAllAccounts();
+    if (accounts.length > 0) {
+      try {
+        document.getElementById("statusMsg").textContent = "Loading your profile...";
+        const result = await msalInstance.acquireTokenSilent({ scopes, account: accounts[0] });
+        const profile = await fetchProfile(result.accessToken);
+        populateUI(profile);
+      } catch (e) {
+        showSignIn();
+      }
+    } else {
+      showSignIn();
+    }
+  }
+
+  init();
 </script>
 
 </body>
