@@ -8,7 +8,6 @@
 <script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-
   body {
     background: #001f4e;
     font-family: 'Barlow', sans-serif;
@@ -18,7 +17,6 @@
     justify-content: center;
     min-height: 100vh;
   }
-
   .card {
     background: rgba(255,255,255,0.05);
     border: 1px solid rgba(255,255,255,0.1);
@@ -28,7 +26,6 @@
     width: 100%;
     text-align: center;
   }
-
   .avatar {
     width: 72px; height: 72px;
     border-radius: 50%;
@@ -40,108 +37,60 @@
     color: #E87722;
     margin: 0 auto 24px;
   }
-
   .greeting {
     font-size: 12px; font-weight: 700;
     text-transform: uppercase; letter-spacing: 0.15em;
-    color: #E87722;
-    margin-bottom: 8px;
+    color: #E87722; margin-bottom: 8px;
   }
-
   .name {
     font-family: 'Barlow Condensed', sans-serif;
     font-size: 36px; font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
+    text-transform: uppercase; letter-spacing: 0.03em;
     margin-bottom: 32px;
   }
-
-  .fields {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    text-align: left;
-  }
-
+  .fields { display: flex; flex-direction: column; gap: 12px; text-align: left; }
   .field {
     background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 8px;
-    padding: 12px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
+    border-radius: 8px; padding: 12px 16px;
+    display: flex; flex-direction: column; gap: 3px;
   }
-
   .field-label {
     font-size: 9px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.12em;
-    color: #E87722;
+    text-transform: uppercase; letter-spacing: 0.12em; color: #E87722;
   }
-
-  .field-value {
-    font-size: 15px; font-weight: 500;
-    color: #fff;
-  }
-
-  .field-value.loading {
-    color: rgba(255,255,255,0.3);
-    font-style: italic;
-    font-size: 13px;
-  }
-
+  .field-value { font-size: 15px; font-weight: 500; color: #fff; }
   .sign-in-btn {
-    margin-top: 28px;
-    background: #E87722;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    padding: 14px 32px;
-    font-family: 'Barlow', sans-serif;
-    font-size: 14px; font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    cursor: pointer;
-    width: 100%;
-    display: none;
-    transition: background 0.15s ease;
+    margin-top: 28px; background: #E87722; color: #fff;
+    border: none; border-radius: 8px; padding: 14px 32px;
+    font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    cursor: pointer; width: 100%; transition: background 0.15s ease;
   }
-
   .sign-in-btn:hover { background: #f5a04a; }
-
-  .status-msg {
-    margin-top: 16px;
-    font-size: 12px;
-    color: rgba(255,255,255,0.4);
-    font-style: italic;
-  }
+  .status-msg { margin-top: 16px; font-size: 12px; color: rgba(255,255,255,0.4); font-style: italic; }
 </style>
 </head>
 <body>
-
 <div class="card">
-  <div class="avatar" id="avatar">...</div>
+  <div class="avatar" id="avatar">MN</div>
   <div class="greeting" id="greeting">Welcome to Nextaff</div>
-  <div class="name" id="name">Loading...</div>
-
+  <div class="name" id="name">Sign In Required</div>
   <div class="fields">
     <div class="field">
       <div class="field-label">Email Address</div>
-      <div class="field-value loading" id="email">Fetching...</div>
+      <div class="field-value" id="email">—</div>
     </div>
     <div class="field">
       <div class="field-label">Office / Location</div>
-      <div class="field-value loading" id="office">Fetching...</div>
+      <div class="field-value" id="office">—</div>
     </div>
     <div class="field">
       <div class="field-label">Job Title</div>
-      <div class="field-value loading" id="title">Fetching...</div>
+      <div class="field-value" id="title">—</div>
     </div>
   </div>
-
-  <button class="sign-in-btn" id="signInBtn" onclick="signIn()">
-    Sign in with Microsoft
-  </button>
+  <button class="sign-in-btn" id="signInBtn" onclick="signIn()">Sign in with Microsoft</button>
   <div class="status-msg" id="statusMsg"></div>
 </div>
 
@@ -150,101 +99,51 @@
   const TENANT_ID = "75d2359e-494b-4009-9a6b-263e04d7744e";
   const REDIRECT  = "https://nextaffone.github.io/n-able/profile-test.html";
 
-  const msalConfig = {
+  const msalInstance = new msal.PublicClientApplication({
     auth: {
       clientId: CLIENT_ID,
-      authority: `https://login.microsoftonline.com/${TENANT_ID}`,
+      authority: "https://login.microsoftonline.com/" + TENANT_ID,
       redirectUri: REDIRECT
     },
     cache: { cacheLocation: "sessionStorage" }
-  };
+  });
 
-  const msalInstance = new msal.PublicClientApplication(msalConfig);
   const scopes = ["User.Read"];
-
   const hour = new Date().getHours();
   const greetingText = hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening";
 
   function getInitials(name) {
-    return name.split(" ").filter(Boolean).map(n => n[0]).join("").toUpperCase().slice(0, 2);
-  }
-
-  function showSignIn() {
-    document.getElementById("name").textContent = "Sign In Required";
-    document.getElementById("signInBtn").style.display = "block";
-    document.getElementById("statusMsg").textContent = "";
-    ["email","office","title"].forEach(id => {
-      document.getElementById(id).textContent = "—";
-      document.getElementById(id).classList.remove("loading");
-    });
+    return name.split(" ").filter(Boolean).map(function(n){ return n[0]; }).join("").toUpperCase().slice(0,2);
   }
 
   function populateUI(profile) {
-    const fullName = profile.displayName || "Unknown";
+    var fullName = profile.displayName || "Unknown";
     document.getElementById("greeting").textContent = greetingText;
     document.getElementById("name").textContent = fullName;
     document.getElementById("avatar").textContent = getInitials(fullName);
     document.getElementById("email").textContent = profile.mail || profile.userPrincipalName || "Not available";
-    document.getElementById("email").classList.remove("loading");
     document.getElementById("office").textContent = profile.officeLocation || "Not set";
-    document.getElementById("office").classList.remove("loading");
     document.getElementById("title").textContent = profile.jobTitle || "Not set";
-    document.getElementById("title").classList.remove("loading");
     document.getElementById("signInBtn").style.display = "none";
     document.getElementById("statusMsg").textContent = "";
   }
 
-  async function fetchProfile(token) {
-    const res = await fetch("https://graph.microsoft.com/v1.0/me?$select=displayName,mail,userPrincipalName,officeLocation,jobTitle", {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    return res.json();
-  }
-
   async function signIn() {
+    document.getElementById("statusMsg").textContent = "Opening Microsoft sign-in...";
+    document.getElementById("signInBtn").disabled = true;
     try {
-      document.getElementById("statusMsg").textContent = "Opening Microsoft sign-in...";
-      const result = await msalInstance.loginPopup({ scopes });
-      const profile = await fetchProfile(result.accessToken);
+      var result = await msalInstance.loginPopup({ scopes: scopes });
+      var res = await fetch("https://graph.microsoft.com/v1.0/me?$select=displayName,mail,userPrincipalName,officeLocation,jobTitle", {
+        headers: { "Authorization": "Bearer " + result.accessToken }
+      });
+      var profile = await res.json();
       populateUI(profile);
-    } catch (e) {
-      document.getElementById("statusMsg").textContent = "Sign-in failed. Please try again.";
+    } catch(e) {
+      document.getElementById("statusMsg").textContent = "Sign-in failed: " + e.message;
+      document.getElementById("signInBtn").disabled = false;
       console.error(e);
     }
   }
-
-  function withTimeout(promise, ms) {
-    return Promise.race([
-      promise,
-      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), ms))
-    ]);
-  }
-
-  async function init() {
-    try {
-      await withTimeout(msalInstance.handleRedirectPromise(), 3000);
-    } catch(e) { /* ignore */ }
-
-    const accounts = msalInstance.getAllAccounts();
-    if (accounts.length > 0) {
-      try {
-        document.getElementById("statusMsg").textContent = "Loading your profile...";
-        const result = await withTimeout(
-          msalInstance.acquireTokenSilent({ scopes, account: accounts[0] }),
-          4000
-        );
-        const profile = await fetchProfile(result.accessToken);
-        populateUI(profile);
-      } catch (e) {
-        showSignIn();
-      }
-    } else {
-      showSignIn();
-    }
-  }
-
-  init();
 </script>
-
 </body>
 </html>
