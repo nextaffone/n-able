@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyNextaff — Profile Test</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;600;700&family=Barlow+Condensed:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #001f4e;
+    font-family: 'Barlow', sans-serif;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+
+  .card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px;
+    padding: 48px 56px;
+    max-width: 480px;
+    width: 100%;
+    text-align: center;
+  }
+
+  .avatar {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    background: #0a3d8f;
+    border: 3px solid #E87722;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 26px; font-weight: 800;
+    color: #E87722;
+    margin: 0 auto 24px;
+    letter-spacing: 1px;
+  }
+
+  .greeting {
+    font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.15em;
+    color: #E87722;
+    margin-bottom: 8px;
+  }
+
+  .name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 36px; font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 32px;
+  }
+
+  .fields {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    text-align: left;
+  }
+
+  .field {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .field-label {
+    font-size: 9px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.12em;
+    color: #E87722;
+  }
+
+  .field-value {
+    font-size: 15px; font-weight: 500;
+    color: #fff;
+  }
+
+  .field-value.loading {
+    color: rgba(255,255,255,0.3);
+    font-style: italic;
+    font-size: 13px;
+  }
+
+  .error-msg {
+    margin-top: 24px;
+    font-size: 12px;
+    color: #f87171;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="avatar" id="avatar">...</div>
+  <div class="greeting" id="greeting">Welcome back</div>
+  <div class="name" id="name">Loading...</div>
+
+  <div class="fields">
+    <div class="field">
+      <div class="field-label">Email Address</div>
+      <div class="field-value loading" id="email">Fetching...</div>
+    </div>
+    <div class="field">
+      <div class="field-label">Office / Location</div>
+      <div class="field-value loading" id="office">Fetching...</div>
+    </div>
+    <div class="field">
+      <div class="field-label">Job Title</div>
+      <div class="field-value loading" id="title">Fetching...</div>
+    </div>
+  </div>
+
+  <div class="error-msg" id="error">
+    ⚠️ Could not load profile — make sure this file is open inside SharePoint, not from your desktop.
+  </div>
+</div>
+
+<script>
+  // Time-based greeting
+  const hour = new Date().getHours();
+  const greetingText = hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening";
+
+  // Grab initials for avatar
+  function getInitials(name) {
+    return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+  }
+
+  // Pull a specific property from the UserProfileProperties array
+  function getProfileProp(props, key) {
+    const match = props.find(p => p.Key === key);
+    return match ? match.Value : null;
+  }
+
+  fetch("/_api/SP.UserProfiles.PeopleManager/GetMyProperties", {
+    headers: { "Accept": "application/json;odata=verbose" }
+  })
+  .then(res => {
+    if (!res.ok) throw new Error("API error");
+    return res.json();
+  })
+  .then(data => {
+    const d = data.d;
+    const props = d.UserProfileProperties?.results || [];
+
+    const fullName = d.DisplayName || "Unknown User";
+    const firstName = fullName.split(" ")[0];
+    const email = d.Email || getProfileProp(props, "WorkEmail") || "Not available";
+    const office = getProfileProp(props, "Office") || getProfileProp(props, "SPS-Location") || "Not set";
+    const title = d.Title || getProfileProp(props, "Title") || "Not set";
+
+    document.getElementById("greeting").textContent = greetingText;
+    document.getElementById("name").textContent = fullName;
+    document.getElementById("avatar").textContent = getInitials(fullName);
+    document.getElementById("email").textContent = email;
+    document.getElementById("email").classList.remove("loading");
+    document.getElementById("office").textContent = office;
+    document.getElementById("office").classList.remove("loading");
+    document.getElementById("title").textContent = title;
+    document.getElementById("title").classList.remove("loading");
+  })
+  .catch(err => {
+    document.getElementById("name").textContent = "Profile Error";
+    document.getElementById("error").style.display = "block";
+    console.error("SharePoint profile fetch failed:", err);
+  });
+</script>
+
+</body>
+</html>
