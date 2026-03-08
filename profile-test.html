@@ -213,13 +213,26 @@
     }
   }
 
+  function withTimeout(promise, ms) {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), ms))
+    ]);
+  }
+
   async function init() {
-    await msalInstance.handleRedirectPromise();
+    try {
+      await withTimeout(msalInstance.handleRedirectPromise(), 3000);
+    } catch(e) { /* ignore */ }
+
     const accounts = msalInstance.getAllAccounts();
     if (accounts.length > 0) {
       try {
         document.getElementById("statusMsg").textContent = "Loading your profile...";
-        const result = await msalInstance.acquireTokenSilent({ scopes, account: accounts[0] });
+        const result = await withTimeout(
+          msalInstance.acquireTokenSilent({ scopes, account: accounts[0] }),
+          4000
+        );
         const profile = await fetchProfile(result.accessToken);
         populateUI(profile);
       } catch (e) {
